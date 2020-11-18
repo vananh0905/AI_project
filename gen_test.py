@@ -22,7 +22,4 @@ def gen_test(n_users, n_items):
     np.savetxt('P.txt', P, delimiter=' ', fmt='%d')
     np.savetxt('C.txt', C, delimiter=' ', fmt='%.5f')
 
-
-#gen_test(1000, 2000)
-
-
+# gen_test(1000, 2000)
