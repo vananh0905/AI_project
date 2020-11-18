@@ -54,11 +54,11 @@ class IFConverter:
                 self.C[i, j] = 1 + self.alpha * self.R[i, j]
 
     def save(self):
-        if self.R:
+        if self.R is not None:
             np.savetxt('./data/R.txt', self.R, delimiter=' ', fmt='%d')
-        if self.P:
+        if self.P is not None:
             np.savetxt('./data/P.txt', self.P, delimiter=' ', fmt='%d')
-        if self.C:
+        if self.C is not None:
             np.savetxt('./data/C.txt', self.C, delimiter=' ', fmt='%.3f')
 
     def load(self):

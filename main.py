@@ -1,7 +1,7 @@
 from WMF import WeightedMF
 from WMF import IFConverter
 
-converter = IFConverter('./TEST.csv')
+converter = IFConverter('./data/TEST.csv')
 # Loading fake data. TEST.csv and this R.txt are irrelevant.
 converter.load()
 converter.convert()
