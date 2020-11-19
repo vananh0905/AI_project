@@ -1,10 +1,21 @@
 import numpy as np
 import pandas as pd
 import os.path
+import normalize
 
 
 class IFConverter:
-    def __init__(self, path, alpha=0.5):
+    """
+    Convert triplets data (user_id, song_id, play_count) into R, P, C matrices
+    Arguments:
+        - path: path to triplets data
+        - alpha (optional): penalty for confidence. Default: 40
+    Methods:
+        - get_implicit_feedback(): read triplets and calculate R. Return None
+        - convert(): convert R into P and C for weighted matrix factorization. Return None
+        - save() and load(): save and load R, P, C if they have been calculated already. Return None
+    """
+    def __init__(self, path, alpha=40):
         self.path = path
         self.n_users = 0
         self.n_items = 0
@@ -62,8 +73,8 @@ class IFConverter:
             np.savetxt('./data/C.txt', self.C, delimiter=' ', fmt='%.3f')
 
     def load(self):
-        if os.path.isfile('./data/R.txt'):
-            with open('./data/R.txt', 'r') as f:
+        if os.path.isfile('./data/R-train.txt'):
+            with open('./data/R-train.txt', 'r') as f:
                 self.R = [[float(num) for num in line[:-1].split(' ')] for line in f]
                 self.R = np.array(self.R)
                 self.n_users = self.R.shape[0]
@@ -79,6 +90,22 @@ class IFConverter:
 
 
 class WeightedMF:
+    """
+    Do weighted matrix factorization by gradient descent
+    Argument:
+        - P, C: P, C matrices
+        - depth: number of latent features. Default: 5
+        - n_epoches: number of epoches to train. Default: 200
+        - lr: learning rate. Default: 1e-6
+        - rgl: regularization value (lambda). Default: 0.02
+        - graph_inferred: if True, implicit feedback is filled by neighborhood users (useful for sparse P matrix). Default: False
+        - early_stopping: if True, stop early in gradient descent when loss may not improve; otherwise, train to the last epoch. Default: True
+        - verbose: if True, print out the information of process. Default: False
+    Methods:
+        - fit(): training model with gradient descent
+        - predict(): return list of recommendations for a user given the user_id and number of items to recommend
+        - save(), load(): save and load U, I if they have been calculated already
+    """
     def __init__(self, P, C, depth=5, n_epoches=200, lr=1e-6, rgl=0.02, graph_inferred=False, early_stopping=True, verbose=False):
         self.P = P
         self.C = C
@@ -87,6 +114,7 @@ class WeightedMF:
         self.depth = depth
         self.U = np.random.rand(self.n_users, self.depth)
         self.I = np.random.rand(self.depth, self.n_items)
+        self.predict = np.zeros_like(P)
         self.n_epoches = n_epoches
         self.rgl = rgl
         self.lr = lr
@@ -117,6 +145,7 @@ class WeightedMF:
                     for j in range(self.n_items):
                         dU[i] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) * np.dot(E_U, self.I[:, j])
                     dU[i] += 2 * self.rgl * self.U[i]
+                    # dU[i] = normalize.sum_normalize(dU[i])
 
                 for j in range(self.n_items):
                     for i in range(self.n_users):
@@ -124,20 +153,33 @@ class WeightedMF:
                             continue
                         dI[:, j] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) * np.dot(self.U[i, :], E_i)
                     dI[:, j] += 2 * self.rgl * self.I[:, j]
+                    # dI[:, j] = normalize.sum_normalize(dI[:, j])
 
                 self.U -= self.lr * dU
                 self.I -= self.lr * dI
 
-    def predict(self):
-        U_tmp = np.zeros_like(self.U)
-        I_tmp = np.zeros_like(self.I)
+        # Normalize 0~1
         for i in range(self.n_users):
-            sum_user_i = np.sum(np.exp(self.U[i]))
-            for k in range(self.depth):
-                U_tmp[i, k] = np.exp(self.U[i, k]) / sum_user_i
+            self.U[i] = normalize.softmax_normalize(self.U[i])
         for j in range(self.n_items):
-            sum_item_j = np.sum(np.exp(self.I[:, j]))
-            for k in range(self.depth):
-                I_tmp[k, j] = np.exp(self.I[k, j]) / sum_item_j
-        predict = np.dot(U_tmp, I_tmp)
-        np.savetxt('./data/predict.txt', predict, delimiter=' ', fmt='%.5f')
+            self.I[:, j] = normalize.softmax_normalize(self.I[:, j])
+        self.predict = np.dot(self.U, self.I)
+
+    def predict(self, user_index, n_rec_items):
+        recommendations = np.argsort(self.predict[user_index])
+        return recommendations[-n_rec_items]
+
+    def save(self):
+        np.savetxt('./data/U.txt', self.U, delimiter=' ', fmt='%.5f')
+        np.savetxt('./data/I.txt', self.I, delimiter=' ', fmt='%.5f')
+        np.savetxt('./data/predict.txt', self.predict, delimiter=' ', fmt='%.5f')
+
+    def load(self):
+        if os.path.isfile('./data/U.txt'):
+            with open('./data/P.txt', 'r') as f:
+                self.U = [[float(num) for num in line[:-1].split(' ')] for line in f]
+                self.U = np.array(self.U)
+        if os.path.isfile('./data/I.txt'):
+            with open('./data/C.txt', 'r') as f:
+                self.I = [[float(num) for num in line[:-1].split(' ')] for line in f]
+                self.I = np.array(self.I)

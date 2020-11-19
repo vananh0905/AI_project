@@ -7,6 +7,6 @@ converter.load()
 converter.convert()
 P, C = converter.P, converter.C
 
-wmf = WeightedMF(P, C, depth=5, early_stopping=False, verbose=True)
+wmf = WeightedMF(P, C, depth=5, early_stopping=True, verbose=True)
 wmf.fit()
-wmf.predict()
+wmf.save()
