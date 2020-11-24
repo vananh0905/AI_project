@@ -22,7 +22,7 @@ class WeightedMF:
         - predict(): return list of recommendations for a user given the user_id and number of items to recommend
         - save(), load(): save and load U, I if they have been calculated already
     """
-    def __init__(self, P, C, dict_user, dict_item, depth=5, n_epoches=200, lr=1e-6, rgl=0.02, batch_size=0, graph_inferred=False, early_stopping=True, verbose=False):
+    def __init__(self, P, C, dict_user, dict_item, optimizer, depth=5, lr=1e-6, rgl=0.02, batch_size=0, graph_inferred=False, early_stopping=True, verbose=False):
         self.P = P
         self.C = C
         self.n_users = P.shape[0]
@@ -33,12 +33,16 @@ class WeightedMF:
         self.U = np.random.rand(self.n_users, self.depth)
         self.I = np.random.rand(self.depth, self.n_items)
         self.predict = np.zeros_like(P)
-        self.n_epoches = n_epoches
         self.rgl = rgl
         self.lr = lr
         self.graph_inferred = graph_inferred
         self.verbose = verbose
         self.early_stopping = early_stopping
+        self.optimizer = optimizer
+        if optimizer == 'sdg':
+            self.n_epoches = 20
+        else:
+            self.n_epoches = 200
         if batch_size == 0:
             self.batch_size = int(self.n_items * self.n_users / 100)
 
@@ -76,9 +80,8 @@ class WeightedMF:
         Y = []
         mark = np.zeros_like(self.C)
 
-        index = 0
-        n_step = int(self.n_items * self.n_users / self.batch_size)
-        for i in range(n_step):
+        n_steps = int(self.n_items * self.n_users / self.batch_size)
+        for i in range(n_steps):
             index = 0
             while index < self.batch_size:
                 x = np.random.randint(self.n_users)
@@ -116,9 +119,10 @@ class WeightedMF:
             if self.early_stopping and current_epoch > 1 and (prev_loss - loss < 0.001):
                 return None
             else:
-                self.__gd()
-                self.__sgd()
-
+                if self.optimizer == 'gd':
+                    self.__gd()
+                else:
+                    self.__sgd()
 
         # # Normalize 0~1
         # for i in range(self.n_users):

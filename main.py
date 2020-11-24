@@ -13,7 +13,7 @@ converter.convert()
 P, C = converter.P, converter.C
 dict_item, dict_user = converter.get_dictionary()
 
-wmf = WeightedMF(P, C, dict_user, dict_item, depth=5, early_stopping=True, verbose=True)
+wmf = WeightedMF(P, C, dict_user, dict_item, optimizer='sgd', depth=5, early_stopping=True, verbose=True)
 wmf.fit()
 print(wmf.get_recommendations(5, 20))
 # Compare to original data
