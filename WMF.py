@@ -40,7 +40,7 @@ class WeightedMF:
         self.verbose = verbose
         self.early_stopping = early_stopping
         if batch_size == 0:
-            self.batch_size = int(self.n_items * self.n_users / 1000)
+            self.batch_size = int(self.n_items * self.n_users / 100)
 
     def __gd(self):
         E_U = np.ones((1, self.depth), dtype=float)
@@ -63,7 +63,8 @@ class WeightedMF:
             dI[:, j] += 2 * self.rgl * self.I[:, j]
             # dI[:, j] = normalize.sum_normalize
 
-        return dU, dI
+        self.U -= self.lr * dU
+        self.I -= self.lr * dI
 
     def __sgd(self):
         E_U = np.ones((1, self.depth), dtype=float)
@@ -76,26 +77,29 @@ class WeightedMF:
         mark = np.zeros_like(self.C)
 
         index = 0
-        while index < self.batch_size:
-            x = np.random.randint(self.n_users)
-            y = np.random.randint(self.n_items)
-            if mark[x, y] == 0:
-                mark[x, y] = 1
-                X.append(x)
-                Y.append(y)
-                index += 1
-        for u in range(self.batch_size):
-            i = X[u]
-            j = Y[u]
-            dU[i] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
-                         * np.dot(E_U, self.I[:, j])
-            dU[i] += 2 * self.rgl * self.U[i]
+        n_step = int(self.n_items * self.n_users / self.batch_size)
+        for i in range(n_step):
+            index = 0
+            while index < self.batch_size:
+                x = np.random.randint(self.n_users)
+                y = np.random.randint(self.n_items)
+                if mark[x, y] == 0:
+                    mark[x, y] = 1
+                    X.append(x)
+                    Y.append(y)
+                    index += 1
+            for u in range(self.batch_size):
+                i = X[u]
+                j = Y[u]
+                dU[i] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
+                             * np.dot(E_U, self.I[:, j])
+                dU[i] += 2 * self.rgl * self.U[i]
 
-            dI[:, j] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
-                            * np.dot(self.U[i, :], E_i)
-            dI[:, j] += 2 * self.rgl * self.I[:, j]
-
-        return dU, dI
+                dI[:, j] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
+                                * np.dot(self.U[i, :], E_i)
+                dI[:, j] += 2 * self.rgl * self.I[:, j]
+            self.U -= self.lr * dU
+            self.I -= self.lr * dI
 
     def fit(self):
         loss = 0
@@ -112,10 +116,9 @@ class WeightedMF:
             if self.early_stopping and current_epoch > 1 and (prev_loss - loss < 0.001):
                 return None
             else:
-                dU, dI = self.__gd()
-                # dU, dI = self.__sgd()
-                self.U -= self.lr * dU
-                self.I -= self.lr * dI
+                self.__gd()
+                self.__sgd()
+
 
         # # Normalize 0~1
         # for i in range(self.n_users):
