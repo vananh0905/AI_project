@@ -1,6 +1,5 @@
 from WMF import WeightedMF
 from IFConverter import IFConverter
-import os
 import numpy as np
 
 converter = IFConverter(alpha=10)
@@ -14,7 +13,10 @@ P, C = converter.P, converter.C
 dict_item, dict_user = converter.get_dictionary()
 
 wmf = WeightedMF(P, C, dict_user, dict_item, optimizer='sgd', depth=5, early_stopping=True, verbose=True)
-wmf.fit()
+if wmf.optimizer == 'formula':
+    wmf.fit_formula()
+else:
+    wmf.fit_derivative()
 print(wmf.get_recommendations(5, 20))
 # Compare to original data
 with open('./data/R-full.txt', 'r') as f:

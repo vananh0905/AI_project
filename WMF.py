@@ -1,8 +1,5 @@
 import numpy as np
-import pandas as pd
 import os.path
-import utils
-
 
 class WeightedMF:
     """
@@ -10,6 +7,7 @@ class WeightedMF:
     Argument:
         - P, C: P, C matrices
         - dict_user, dict_item: mapping between name and index of users and items
+        - optimizer: approach to train. There are 3 choices: use formula, use derivative with sdg, use derivative with gd
         - depth: number of latent features. Default: 5
         - n_epoches: number of epoches to train. Default: 200
         - lr: learning rate. Default: 1e-6
@@ -17,10 +15,13 @@ class WeightedMF:
         - graph_inferred: if True, implicit feedback is filled by neighborhood users (useful for sparse P matrix). Default: False
         - early_stopping: if True, stop early in gradient descent when loss may not improve; otherwise, train to the last epoch. Default: True
         - verbose: if True, print out the information of process. Default: False
+        - U, I: hidden representation for each user, item
     Methods:
-        - fit(): training model with gradient descent
-        - predict(): return list of recommendations for a user given the user_id and number of items to recommend
+        - fit_derivative(): training model with derivative
+        - fit_formula(): training model with formula
+        - get_recommendations(): return list of recommendations for a user given the user_id and number of items to recommend
         - save(), load(): save and load U, I if they have been calculated already
+
     """
     def __init__(self, P, C, dict_user, dict_item, optimizer, depth=5, lr=1e-6, rgl=0.02, batch_size=0, graph_inferred=False, early_stopping=True, verbose=False):
         self.P = P
@@ -60,8 +61,6 @@ class WeightedMF:
 
         for j in range(self.n_items):
             for i in range(self.n_users):
-                if self.P[i, j] == 0:
-                    continue
                 dI[:, j] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
                             * np.dot(self.U[i, :], E_i)
             dI[:, j] += 2 * self.rgl * self.I[:, j]
@@ -104,7 +103,35 @@ class WeightedMF:
             self.U -= self.lr * dU
             self.I -= self.lr * dI
 
-    def fit(self):
+    def fit_formula(self):
+        loss = 0
+        for current_epoch in range(self.n_epoches):
+            prev_loss = loss
+            for i in range(self.n_users):
+                C_u = np.zeros((self.n_items, self.n_items))
+                E = np.zeros((self.depth, self.depth))
+                for j in range(self.n_items):
+                    C_u[j, j] = self.C[i, j]
+                self.U[i] = np.dot(
+                    np.dot(np.dot(np.linalg.inv(np.dot(np.dot(self.I, C_u), self.I.T) + self.rgl * E), self.I), C_u),
+                    self.P[i].T).T
+            for i in range(self.n_users):
+                C_i = np.zeros((self.n_users, self.n_users))
+                E = np.zeros((self.depth, self.depth))
+                for j in range(self.n_users):
+                    C_i[j, j] = self.C[i, j]
+                self.I[:, i] = np.dot(
+                    np.dot(np.dot(np.linalg.inv(np.dot(np.dot(self.U.T, C_i), self.U) + self.rgl * E), self.U.T), C_i),
+                    self.P[:, i])
+            loss = np.sqrt(np.sum((np.dot(self.U, self.I) - self.P) ** 2) / (self.n_users * self.n_items))
+            if self.early_stopping and current_epoch > 1:
+                if prev_loss - loss < 0.0001:
+                    break
+            if self.verbose:
+                print("Training at {}th epoch".format(current_epoch + 1))
+                print("Avg. loss: {:.5f}".format(loss))
+
+    def fit_derivative(self):
         loss = 0
         for current_epoch in range(self.n_epoches):
             prev_loss = loss

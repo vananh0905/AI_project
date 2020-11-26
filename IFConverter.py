@@ -49,7 +49,7 @@ class IFConverter:
         self.n_items = int(len(self.dict_items) / 2)
         self.R = np.zeros((self.n_users, self.n_items), dtype=float)
         for index, row in data.iterrows():
-            self.R[self.dict_user[row['User']], self.dict_items[row['Song']]] = float(row['Play count'])
+            self.R[self.dict_user[row['User']], self.dict_items[row['Song']]] = int(row['Play count'])
         return self.R
 
     def convert(self):
