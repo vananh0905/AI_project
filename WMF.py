@@ -1,6 +1,5 @@
 import numpy as np
 import os.path
-import utils
 
 
 class WeightedMF:
@@ -25,14 +24,12 @@ class WeightedMF:
         - save(), load(): save and load U, I if they have been calculated already
 
     """
-    def __init__(self, P, C, dict_user, dict_item, optimizer, depth=5, lr=1e-6, rgl=0.02, batch_size=0, graph_inferred=False, early_stopping=True, verbose=False):
+    def __init__(self, P, C, n_epoches=0, optimizer='sgd', depth=5, lr=1e-6, rgl=0.02, batch_size=0, graph_inferred=False, early_stopping=True, verbose=False):
         self.P = P
         self.C = C
         self.n_users = P.shape[0]
         self.n_items = P.shape[1]
         self.depth = depth
-        self.dict_user = dict_user
-        self.dict_item = dict_item
         self.U = np.random.rand(self.n_users, self.depth)
         self.I = np.random.rand(self.depth, self.n_items)
         self.predict = np.zeros_like(P)
@@ -42,12 +39,15 @@ class WeightedMF:
         self.verbose = verbose
         self.early_stopping = early_stopping
         self.optimizer = optimizer
-        if optimizer == 'sgd':
-            self.n_epoches = 20
-        elif optimizer == 'gd':
-            self.n_epoches = 200
-        elif optimizer == 'formula':
-            self.n_epoches = 10
+        if n_epoches == 0:
+            if optimizer == 'sgd':
+                self.n_epoches = 20
+            elif optimizer == 'gd':
+                self.n_epoches = 200
+            elif optimizer == 'formula':
+                self.n_epoches = 10
+        else:
+            self.n_epoches = n_epoches
         if batch_size == 0:
             self.batch_size = int(self.n_items * self.n_users / 100)
 
@@ -61,14 +61,12 @@ class WeightedMF:
                 dU[i] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
                          * np.dot(E_U, self.I[:, j])
             dU[i] += 2 * self.rgl * self.U[i]
-            # dU[i] = normalize.sum_normalize(dU[i])
 
         for j in range(self.n_items):
             for i in range(self.n_users):
                 dI[:, j] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
                             * np.dot(self.U[i, :], E_i)
             dI[:, j] += 2 * self.rgl * self.I[:, j]
-            # dI[:, j] = normalize.sum_normalize
 
         self.U -= self.lr * dU
         self.I -= self.lr * dI
@@ -141,12 +139,13 @@ class WeightedMF:
             prev_loss = loss
             loss = 0
             if self.verbose:
-                print("Processing epoch {}".format(current_epoch))
+                print("Processing epoch {}".format(current_epoch+1))
             for i in range(self.n_users):
                 for j in range(self.n_items):
                     loss += self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) ** 2
             loss = loss + self.rgl * (np.sum(self.U ** 2) + np.sum(self.I ** 2))
-            print("Loss at epoch {}: {:.3f}".format(current_epoch+1, loss))
+            if self.verbose:
+                print("Loss at epoch {}: {:.3f}".format(current_epoch+1, loss))
             if self.early_stopping and current_epoch > 1 and (prev_loss - loss < 0.001):
                 return None
             else:
@@ -160,11 +159,6 @@ class WeightedMF:
             self.__fit_formula()
         else:
             self.__fit_derivative()
-        # Normalize 0~1
-        # for i in range(self.n_users):
-        #     self.U[i] = utils.softmax_normalize(self.U[i])
-        # for i in range(self.depth):
-        #     self.I[i] = utils.softmax_normalize(self.I[i])
         self.predict = np.dot(self.U, self.I)
 
     def get_recommendations(self, user_index, n_rec_items):
@@ -175,18 +169,6 @@ class WeightedMF:
         #     name_of_songs_rec.append(self.dict_item[recommendations[i]])
         # return name_of_songs_rec
         return recommendations
-
-    # def evaluate(self, user_index):
-    #     sum_of_deleted_feedback = 0
-    #     true_positive = 0
-    #     name_of_songs_res, recommendations = self.predict()
-    #     R_train, R_full = self.load_train_file()
-    #     for i in range(self.n_items):
-    #         if R_train[user_index, i] != R_full[user_index, i]:
-    #             sum_of_deleted_feedback += 1
-    #             if i in recommendations:
-    #                 true_positive += 1
-    #     return float(true_positive/sum_of_deleted_feedback) * 100
 
     def save(self):
         np.savetxt('./data/U.txt', self.U, delimiter=' ', fmt='%.5f')

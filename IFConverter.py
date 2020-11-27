@@ -56,6 +56,8 @@ class IFConverter:
         """Convert R into P and C"""
         self.P = np.zeros_like(self.R)
         self.C = np.ones_like(self.R)
+        self.n_users = self.R.shape[0]
+        self.n_items = self.R.shape[1]
         for i in range(self.n_users):
             for j in range(self.n_items):
                 if self.R[i, j] == 0:
