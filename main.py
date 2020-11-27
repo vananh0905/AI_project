@@ -18,4 +18,4 @@ wmf = WeightedMF(P, C, dict_user, dict_item, optimizer='sgd', depth=10, early_st
 wmf.load()
 
 import evaluate
-evaluate.eval_mark(original_path='./data/R-full.txt', model=wmf, k=20)
+evaluate.ark()
