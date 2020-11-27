@@ -1,5 +1,7 @@
 import numpy as np
 import os.path
+import utils
+
 
 class WeightedMF:
     """
@@ -40,10 +42,12 @@ class WeightedMF:
         self.verbose = verbose
         self.early_stopping = early_stopping
         self.optimizer = optimizer
-        if optimizer == 'sdg':
+        if optimizer == 'sgd':
             self.n_epoches = 20
-        else:
+        elif optimizer == 'gd':
             self.n_epoches = 200
+        elif optimizer == 'formula':
+            self.n_epoches = 10
         if batch_size == 0:
             self.batch_size = int(self.n_items * self.n_users / 100)
 
@@ -103,7 +107,7 @@ class WeightedMF:
             self.U -= self.lr * dU
             self.I -= self.lr * dI
 
-    def fit_formula(self):
+    def __fit_formula(self):
         loss = 0
         for current_epoch in range(self.n_epoches):
             prev_loss = loss
@@ -131,7 +135,7 @@ class WeightedMF:
                 print("Training at {}th epoch".format(current_epoch + 1))
                 print("Avg. loss: {:.5f}".format(loss))
 
-    def fit_derivative(self):
+    def __fit_derivative(self):
         loss = 0
         for current_epoch in range(self.n_epoches):
             prev_loss = loss
@@ -151,12 +155,17 @@ class WeightedMF:
                 else:
                     self.__sgd()
 
-        # # Normalize 0~1
+    def fit(self):
+        if self.optimizer == 'formula':
+            self.__fit_formula()
+        else:
+            self.__fit_derivative()
+        # Normalize 0~1
         # for i in range(self.n_users):
         #     self.U[i] = utils.softmax_normalize(self.U[i])
         # for i in range(self.depth):
         #     self.I[i] = utils.softmax_normalize(self.I[i])
-        # self.predict = np.dot(self.U, self.I)
+        self.predict = np.dot(self.U, self.I)
 
     def get_recommendations(self, user_index, n_rec_items):
         recommendations = np.argsort(self.predict[user_index])
@@ -186,11 +195,11 @@ class WeightedMF:
 
     def load(self):
         if os.path.isfile('./data/U.txt'):
-            with open('./data/P.txt', 'r') as f:
+            with open('./data/U.txt', 'r') as f:
                 self.U = [[float(num) for num in line[:-1].split(' ')] for line in f]
                 self.U = np.array(self.U)
         if os.path.isfile('./data/I.txt'):
-            with open('./data/C.txt', 'r') as f:
+            with open('./data/I.txt', 'r') as f:
                 self.I = [[float(num) for num in line[:-1].split(' ')] for line in f]
                 self.I = np.array(self.I)
 
