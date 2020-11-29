@@ -2,10 +2,12 @@ from WMF import WeightedMF
 from IFConverter import IFConverter
 import numpy as np
 import evaluate
+import gen_test
 
 converter = IFConverter()
-# converter.get_implicit_feedback('./data/TEST.csv')
-# Loading fake data
+converter.get_implicit_feedback('./data/Triplets.csv')
+
+gen_test.gen_fake_R_train('./data/R-full.txt')
 with open('./data/R-train.txt', 'r') as f:
     converter.R = [[float(num) for num in line[:-1].split(' ')] for line in f]
     converter.R = np.array(converter.R)

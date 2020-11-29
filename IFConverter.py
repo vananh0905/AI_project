@@ -50,7 +50,8 @@ class IFConverter:
         self.R = np.zeros((self.n_users, self.n_items), dtype=float)
         for index, row in data.iterrows():
             self.R[self.dict_user[row['User']], self.dict_items[row['Song']]] = int(row['Play count'])
-        return self.R
+
+        np.savetxt('./data/R-full.txt', self.R, delimiter=' ', fmt='%d')
 
     def convert(self):
         """Convert R into P and C"""

@@ -75,27 +75,27 @@ class WeightedMF:
     def __sgd(self):
         E_U = np.ones((1, self.depth), dtype=float)
         E_i = np.ones((self.depth, 1), dtype=float)
-
         dU = np.zeros_like(self.U)
         dI = np.zeros_like(self.I)
+
         X = []
         Y = []
         mark = np.zeros_like(self.C)
+        index = 0
+        while index < int(self.n_users*self.n_items):
+            x = np.random.randint(self.n_users)
+            y = np.random.randint(self.n_items)
+            if mark[x, y] == 0:
+                mark[x, y] = 1
+                X.append(x)
+                Y.append(y)
+                index += 1
 
         n_steps = int(self.n_items * self.n_users / self.batch_size)
-        for i in range(n_steps):
-            index = 0
-            while index < self.batch_size:
-                x = np.random.randint(self.n_users)
-                y = np.random.randint(self.n_items)
-                if mark[x, y] == 0:
-                    mark[x, y] = 1
-                    X.append(x)
-                    Y.append(y)
-                    index += 1
+        for s in range(n_steps):
             for u in range(self.batch_size):
-                i = X[u]
-                j = Y[u]
+                i = X[s*self.batch_size + u]
+                j = Y[s*self.batch_size + u]
                 dU[i] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
                              * np.dot(E_U, self.I[:, j])
                 dU[i] += 2 * self.rgl * self.U[i]
