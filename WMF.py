@@ -33,6 +33,7 @@ class WeightedMF:
         self.U = np.random.rand(self.n_users, self.depth)
         self.I = np.random.rand(self.depth, self.n_items)
         self.predict = np.zeros_like(P)
+        self.is_loaded = False
         self.rgl = rgl
         self.lr = lr
         self.graph_inferred = graph_inferred
@@ -126,7 +127,8 @@ class WeightedMF:
                     np.dot(np.dot(np.linalg.inv(np.dot(np.dot(self.U.T, C_i), self.U) + self.rgl * E), self.U.T), C_i),
                     self.P[:, i])
             loss = np.sqrt(np.sum((np.dot(self.U, self.I) - self.P) ** 2) / (self.n_users * self.n_items))
-            if self.early_stopping and current_epoch > 1:
+            # Run at least 5 epoches
+            if self.early_stopping and current_epoch > 5:
                 if prev_loss - loss < 0.0001:
                     break
             if self.verbose:
@@ -155,10 +157,11 @@ class WeightedMF:
                     self.__sgd()
 
     def fit(self):
-        if self.optimizer == 'formula':
-            self.__fit_formula()
-        else:
-            self.__fit_derivative()
+        if not self.is_loaded:
+            if self.optimizer == 'formula':
+                self.__fit_formula()
+            else:
+                self.__fit_derivative()
         self.predict = np.dot(self.U, self.I)
 
     def get_recommendations(self, user_index, n_rec_items):
@@ -176,12 +179,16 @@ class WeightedMF:
         np.savetxt('./data/predict.txt', self.predict, delimiter=' ', fmt='%.5f')
 
     def load(self):
-        if os.path.isfile('./data/U.txt'):
+        if os.path.isfile('./data/U.txt') and os.path.isfile('./data/I.txt'):
             with open('./data/U.txt', 'r') as f:
                 self.U = [[float(num) for num in line[:-1].split(' ')] for line in f]
                 self.U = np.array(self.U)
-        if os.path.isfile('./data/I.txt'):
             with open('./data/I.txt', 'r') as f:
+                self.I = [[float(num) for num in line[:-1].split(' ')] for line in f]
+                self.I = np.array(self.I)
+            self.is_loaded = True
+        if os.path.isfile('./data/predict.txt'):
+            with open('./data/predict.txt', 'r') as f:
                 self.I = [[float(num) for num in line[:-1].split(' ')] for line in f]
                 self.I = np.array(self.I)
 
