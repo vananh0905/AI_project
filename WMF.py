@@ -24,14 +24,14 @@ class WeightedMF:
         - save(), load(): save and load U, I if they have been calculated already
 
     """
-    def __init__(self, P, C, n_epoches=0, optimizer='sgd', depth=5, lr=1e-6, rgl=0.02, batch_size=0, graph_inferred=False, early_stopping=True, verbose=False):
+    def __init__(self, P, C, n_epoches=0, optimizer='sgd', depth=5, lr=40, rgl=0.02, batch_size=0, graph_inferred=False, early_stopping=True, verbose=False):
         self.P = P
         self.C = C
         self.n_users = P.shape[0]
         self.n_items = P.shape[1]
         self.depth = depth
-        self.U = np.random.rand(self.n_users, self.depth)
-        self.I = np.random.rand(self.depth, self.n_items)
+        self.U = np.random.normal(0, 1, size=(self.n_users, self.depth))
+        self.I = np.random.normal(0, 1, size=(self.depth, self.n_items))
         self.predict = np.zeros_like(P)
         self.is_loaded = False
         self.rgl = rgl
