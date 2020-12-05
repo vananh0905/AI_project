@@ -15,14 +15,14 @@ converter.convert()
 P, C = converter.P, converter.C
 dict_item, dict_user = converter.get_dictionary()
 
-wmf = WeightedMF(P, C, optimizer='sgd', verbose=True)
+wmf = WeightedMF(P, C, optimizer='sgd', early_stopping=False, verbose=True)
 wmf.fit()
 # wmf.save()
 # wmf.load()
 
 # Evaluate MAR@k of first n users
 k = 20
-n_users = 1000
+n_users = 100
 predicts = [wmf.get_recommendations(user, k) for user in range(n_users)]
 with open('./data/R-full.txt', 'r') as f:
     targets = [[float(num) for num in line[:-1].split(' ')] for line in f]

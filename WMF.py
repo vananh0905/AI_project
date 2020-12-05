@@ -24,14 +24,14 @@ class WeightedMF:
         - save(), load(): save and load U, I if they have been calculated already
 
     """
-    def __init__(self, P, C, n_epoches=0, optimizer='sgd', depth=5, lr=40, rgl=0.02, batch_size=0, graph_inferred=False, early_stopping=True, verbose=False):
+    def __init__(self, P, C, n_epoches=0, optimizer='sgd', depth=5, lr=1e-6, rgl=0.02, batch_size=0, graph_inferred=False, early_stopping=True, verbose=False):
         self.P = P
         self.C = C
         self.n_users = P.shape[0]
         self.n_items = P.shape[1]
         self.depth = depth
-        self.U = np.random.normal(0, 1, size=(self.n_users, self.depth))
-        self.I = np.random.normal(0, 1, size=(self.depth, self.n_items))
+        self.U = np.random.normal(0, 0.5, size=(self.n_users, self.depth))
+        self.I = np.random.normal(0, 0.5, size=(self.depth, self.n_items))
         self.predict = np.zeros_like(P)
         self.is_loaded = False
         self.rgl = rgl
@@ -53,28 +53,25 @@ class WeightedMF:
             self.batch_size = int(self.n_items * self.n_users / 100)
 
     def __gd(self):
-        E_U = np.ones((1, self.depth), dtype=float)
-        E_i = np.ones((self.depth, 1), dtype=float)
         dU = np.zeros_like(self.U)
         dI = np.zeros_like(self.I)
+
         for i in range(self.n_users):
             for j in range(self.n_items):
-                dU[i] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
-                         * np.dot(E_U, self.I[:, j])
+                dU[i] += 2 * self.C[i, j] * (np.dot(self.U[i], self.I[:, j]) - self.P[i, j]) \
+                         * self.I[:, j]
             dU[i] += 2 * self.rgl * self.U[i]
 
         for j in range(self.n_items):
             for i in range(self.n_users):
                 dI[:, j] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
-                            * np.dot(self.U[i, :], E_i)
+                            * self.U[i, :]
             dI[:, j] += 2 * self.rgl * self.I[:, j]
 
         self.U -= self.lr * dU
         self.I -= self.lr * dI
 
     def __sgd(self):
-        E_U = np.ones((1, self.depth), dtype=float)
-        E_i = np.ones((self.depth, 1), dtype=float)
         dU = np.zeros_like(self.U)
         dI = np.zeros_like(self.I)
 
@@ -82,7 +79,8 @@ class WeightedMF:
         Y = []
         mark = np.zeros_like(self.C)
         index = 0
-        while index < int(self.n_users*self.n_items):
+        t = int(self.n_users*self.n_items)
+        while index < t:
             x = np.random.randint(self.n_users)
             y = np.random.randint(self.n_items)
             if mark[x, y] == 0:
@@ -97,11 +95,11 @@ class WeightedMF:
                 i = X[s*self.batch_size + u]
                 j = Y[s*self.batch_size + u]
                 dU[i] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
-                             * np.dot(E_U, self.I[:, j])
+                             * self.I[:, j]
                 dU[i] += 2 * self.rgl * self.U[i]
 
                 dI[:, j] += 2 * self.C[i, j] * (np.dot(self.U[i, :], self.I[:, j]) - self.P[i, j]) \
-                                * np.dot(self.U[i, :], E_i)
+                                * self.U[i, :]
                 dI[:, j] += 2 * self.rgl * self.I[:, j]
             self.U -= self.lr * dU
             self.I -= self.lr * dI

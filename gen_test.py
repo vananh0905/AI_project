@@ -36,4 +36,4 @@ def gen_fake_R_train(path_to_R_full, gap_ratio=0.1):
 
 
 gen_fake_R(100, 200)
-# gen_fake_R_train('./data/R-full.txt')
+#gen_fake_R_train('./data/R-full.txt')
